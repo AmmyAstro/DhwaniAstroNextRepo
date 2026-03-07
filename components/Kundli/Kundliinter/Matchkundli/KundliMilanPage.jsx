@@ -1,0 +1,362 @@
+'use client';
+
+import React, { useState } from 'react';
+import Image from 'next/image';
+import UserDetFD from '@/components/Smcompo/UserDetFD';
+import Personal from '@/components/Smcompo/Personal';
+import {
+    useGetMatchAsktPMutation,
+    useGetMatchObstMutation,
+    useGetMatchAstroMutation, useGetMatchManglikMutation,
+    useGetMatchMrepoMutation
+} from '@/app/redux/services/astrologyAPI';
+import Callchatsec from '@/components/Smcompo/Callchatsec';
+
+const KundliMilanPage = () => {
+    const [boyData, setBoyData] = useState({
+        name: '',
+        dob: '',
+        birthTime: '',
+        birthPlace: '',
+        lat: '',
+        lon: '',
+    });
+
+    const [girlData, setGirlData] = useState({
+        name: '',
+        dob: '',
+        birthTime: '',
+        birthPlace: '',
+        lat: '',
+        lon: '',
+    });
+
+    const [showForm, setShowForm] = useState(true);
+    const [localMatchData, setLocalMatchData] = useState(null);
+    const [matchObsData, setMatchObsData] = useState(null);
+    const [astroData, setAstroData] = useState(null);
+    const [manglikData, setManglikData] = useState(null);
+    const [matchReport, setMatchReport] = useState(null);
+    const [formError, setFormError] = useState("");
+
+    const [triggerMatch, { isLoading, isError, error }] = useGetMatchAsktPMutation();
+    const [triggerMatchObs] = useGetMatchObstMutation();
+    const [triggerMatchAstro] = useGetMatchAstroMutation();
+    const [triggerManglik] = useGetMatchManglikMutation();
+    const [triggerMatchReport] = useGetMatchMrepoMutation();
+
+    const handleBoyChange = e => setBoyData({ ...boyData, [e.target.name]: e.target.value });
+    const handleGirlChange = e => setGirlData({ ...girlData, [e.target.name]: e.target.value });
+    const handleBoyLocationSelect = (dataToSend) => {
+        setBoyData(prev => ({
+            ...prev,
+            birthPlace: dataToSend.city,
+            lat: Number(dataToSend.latitude),
+            lon: Number(dataToSend.longitude),
+        }));
+    };
+
+
+    const handleGirlLocationSelect = (dataToSend) => {
+        setGirlData((prev) => ({
+            ...prev,
+            birthPlace: dataToSend.city,
+            lat: Number(dataToSend.latitude),
+            lon: Number(dataToSend.longitude),
+        }));
+    };
+
+
+    const handleSubmit = async e => {
+        e.preventDefault();
+        setFormError("");
+
+        // Validation for both boy and girl
+        const requiredFields = ["name", "dob", "birthTime", "birthPlace", "lat", "lon"];
+        for (const field of requiredFields) {
+            if (!boyData[field] || !girlData[field]) {
+                setFormError("Please fill all required fields for both Boy and Girl, including location.");
+                return;
+            }
+        }
+        // Validate date and time
+        if (isNaN(new Date(boyData.dob)) || isNaN(new Date(girlData.dob))) {
+            setFormError("Please enter valid dates for both Boy and Girl.");
+            return;
+        }
+        if (!/^\d{2}:\d{2}$/.test(boyData.birthTime) || !/^\d{2}:\d{2}$/.test(girlData.birthTime)) {
+            setFormError("Please enter valid birth times in HH:MM format for both Boy and Girl.");
+            return;
+        }
+
+        const payload = {
+            m_day: new Date(boyData.dob).getDate(),
+            m_month: new Date(boyData.dob).getMonth() + 1,
+            m_year: new Date(boyData.dob).getFullYear(),
+            m_hour: +boyData.birthTime.split(':')[0],
+            m_min: +boyData.birthTime.split(':')[1],
+            m_lat: boyData.lat,
+            m_lon: boyData.lon,
+            m_tzone: 5.5,
+            m_birthplace: boyData.birthPlace,
+
+            f_day: new Date(girlData.dob).getDate(),
+            f_month: new Date(girlData.dob).getMonth() + 1,
+            f_year: new Date(girlData.dob).getFullYear(),
+            f_hour: +girlData.birthTime.split(':')[0],
+            f_min: +girlData.birthTime.split(':')[1],
+            f_lat: girlData.lat,
+            f_lon: girlData.lon,
+            f_tzone: 5.5,
+            f_birthplace: girlData.birthPlace,
+        };
+
+        try {
+            const result = await triggerMatch(payload).unwrap();
+            setLocalMatchData(result);
+
+            const obsResult = await triggerMatchObs(payload).unwrap();
+            setMatchObsData(obsResult);
+
+            const astroResult = await triggerMatchAstro(payload).unwrap();
+            setAstroData(astroResult);
+            const manglikResult = await triggerManglik(payload).unwrap();
+            setManglikData(manglikResult);
+            const reportResult = await triggerMatchReport(payload).unwrap();
+            setMatchReport(reportResult);
+
+            setShowForm(false);
+        } catch (err) {
+            setFormError('API error: ' + (err?.data || err?.message || 'Unknown error'));
+            // console.error('API error:', err);
+        }
+    };
+
+    const renderAstroBlock = (title, data, bgColor, txtColor) => (
+        <div className={`bg-${bgColor}-100 p-4 rounded-lg shadow-md`}>
+            <h5 className="font-semibold text-base text-center mb-2">{title}</h5>
+            <div className="grid grid-cols-1 text-sm gap-x-3 gap-y-1 text-black">
+                {Object.entries(data).map(([key, val]) => (
+                    <div key={key} className="flex justify-between">
+                        <span className={`capitalize ${txtColor} font-semibold`}>{key.replace(/_/g, ' ')}:</span>
+                        <span className="font-medium">{val}</span>
+                    </div>
+                ))}
+            </div>
+        </div>
+    );
+
+    const renderManglikRules = (rules, title) => (
+        <div className="mb-2 mt-5">
+            <h5 className="font-semibold text-sm text-purple-600">{title}</h5>
+            <ul className="list-disc list-inside text-sm text-black">
+                {rules.map((rule, idx) => <li key={idx}>{rule}</li>)}
+            </ul>
+        </div>
+    );
+
+    const imageMap = {
+        ashtakoota: '/ds-img/wedding-couple.png',
+        manglik: "/ds-img/ology.webp",
+        rajju_dosha: "/ds-img/galaxy.png",
+        vedha_dosha: "/ds-img/k11.png",
+    };
+
+    return (
+        <div className="min-h-screen flex flex-col items-center py-4 px-4">
+            <h1 className="text-xl md:text-xl text-black font-semibold">
+                <span className="text-red-500">Free Match Making - Kundli Milan</span> Report
+            </h1>
+
+            {showForm ? (
+                <div className="flex flex-col w-full gap-10">
+                    <form onSubmit={handleSubmit} className="w-full space-y-6 pt-4 flex flex-col justify-center">
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <UserDetFD title="Your Details" formData={boyData} handleChange={handleBoyChange} handleLocationSelect={handleBoyLocationSelect}
+                            />
+                            <UserDetFD title="Partner Details" formData={girlData} handleChange={handleGirlChange} handleLocationSelect={handleGirlLocationSelect} />
+                        </div>
+                        {formError && (
+                            <div className="text-center text-red-500 font-semibold text-sm py-2">{formError}</div>
+                        )}
+                        <button aria-label="Show Match Details"
+                            type="submit"
+                            className="w-[40%] place-self-center mx-auto bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-full shadow-lg">
+                            Show Match Details
+                        </button>
+                    </form>
+
+                    <div className="result-compat border border-gray-400 rounded-lg p-5 text-black flex flex-col gap-5 mt-5">
+                        <div className="head-wrap">
+                            <h5 className="text-center text-base text-black">
+                                <span className="text-red-400 font-semibold">Kundli Milan & Gun Milan</span> to Check Possibilities of Marriage
+                            </h5>
+                            <span className="text-xs md:text-sm">
+                                <p>Kundli milan or kundali matching is an important consideration...</p>
+                                <p>The online gun milan software on Astrotalk has been prepared by the top astrologers...</p>
+                            </span>
+                        </div>
+
+                    </div>
+                    <Callchatsec />
+                </div>
+            ) : (
+                <div className="w-full max-w-4xl mx-auto mt-1 flex flex-col gap-10">
+                    <div className="det-div w-full bg-white p-6 rounded-lg shadow-xl">
+                        <div className="flex justify-center gap-10 mb-4">
+                            <Image src="/ds-img/newmatchboy.png" alt="boy" width={50} height={50} className="w-18 h-auto" />
+                            <Image src="/ds-img/Couple.png" alt="couple" width={50} height={10} className="w-16 h-15" />
+                            <Image src="/ds-img/newmatchgrl.png" alt="girl" width={50} height={50} className="w-18 h-auto" />
+                        </div>
+
+                        <div className="grid grid-cols-1 text-black md:grid-cols-2 gap-6 text-sm">
+                            <div className="bg-purple-200 p-4 rounded-lg flex flex-col gap-1">
+                                <p className='flex gap-10'><strong>Name:</strong> {boyData.name}</p>
+                                <p className='flex gap-10'><strong>Birth Date:</strong> {boyData.dob}</p>
+                                <p className='flex gap-10'><strong>Birth Time:</strong> {boyData.birthTime}</p>
+                                <p className='flex gap-10'><strong>Birth Place:</strong> {boyData.birthPlace}</p>
+                            </div>
+                            <div className="bg-pink-200 p-4 rounded-lg flex flex-col gap-1">
+                                <p className='flex gap-10'><strong>Name:</strong> {girlData.name}</p>
+                                <p className='flex gap-10'><strong>Birth Date:</strong> {girlData.dob}</p>
+                                <p className='flex gap-10'><strong>Birth Time:</strong> {girlData.birthTime}</p>
+                                <p className='flex gap-10'><strong>Birth Place:</strong> {girlData.birthPlace}</p>
+                            </div>
+                        </div>
+
+                        <div className="dosh-tf grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 mt-6">
+                            {matchReport && (
+                                <>
+                                    {Object.entries(matchReport)
+                                        .filter(([key, value]) => key !== 'conclusion' && value?.status !== undefined)
+                                        .map(([key, value], index) => (
+                                            <div
+                                                key={index}
+                                                className="px-2 py-2 rounded-lg shadow-lg point-bx flex gap-2 flex-col items-center justify-center bg-linear-to-r from-[#c54e5a6b] to-[#7042ac98]"
+                                            >
+                                                <img
+                                                    src={imageMap[key] || '/assets/icons/default.png'}
+                                                    alt={key}
+                                                    className="w-12 h-12 object-contain mb-2"
+                                                />
+                                                <h4 className="text-base font-semibold capitalize">{key.replace('_', ' ')}</h4>
+                                                <p className='text-black bg-white rounded-full text-xs font-semibold px-5 py-1'>Status: {value.status ? 'true' : 'false'}</p>
+                                            </div>
+                                        ))}
+                                </>
+                            )}
+
+                            {matchReport?.conclusion?.match_report && (
+                                <div className="mt-4 bg-purple-100 border border-purple-300 rounded-lg p-4 text-sm text-black shadow col-span-full">
+                                    <h4 className="font-semibold text-purple-500 mb-2">Conclusion :</h4>
+                                    <p>{matchReport.conclusion.match_report}</p>
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="match-mang mt-8 p-4 bg-purple-50 border border-purple-200 rounded-lg text-sm text-black shadow">
+                            <h4 className="text-xl text-center font-semibold mb-3 text-purple-600">Manglik Dosha Analysis</h4>
+                            <div className="grid grid-cols-2 gap-5  ">
+                                {manglikData ? (
+                                    <>
+                                        {['male', 'female'].map(gender => (
+                                            <div key={gender} className="mb-6 flex flex-col gap-1">
+                                                <h5 className="font-semibold text-base text-center mb-1 text-purple-500 capitalize">{gender}'s Analysis</h5>
+                                                <p className='flex gap-5'><strong>Is Manglik:</strong> {manglikData[gender].is_present ? 'Yes' : 'No'}</p>
+                                                <p className='flex gap-5'><strong>Manglik Status:</strong> {manglikData[gender].manglik_status}</p>
+                                                <p className='flex gap-5'><strong>Manglik percentage:</strong> {manglikData[gender].percentage_manglik_present}%</p>
+                                                <p className='flex gap-5'><strong>Manglik percentage After Cancellation :</strong> {manglikData[gender].percentage_manglik_after_cancellation}%</p>
+                                                <p className='flex gap-5'><strong>Report:</strong> {manglikData[gender].manglik_report}</p>
+                                                {renderManglikRules(manglikData[gender].manglik_present_rule.based_on_aspect, 'Based on Aspects')}
+                                                {renderManglikRules(manglikData[gender].manglik_present_rule.based_on_house, 'Based on House')}
+                                                {renderManglikRules(manglikData[gender].manglik_cancel_rule, 'Cancellation Rules')}
+                                            </div>
+                                        ))}
+                                        <div className="mt-4 p-3 bg-purple-100 rounded-lg w-full col-span-2">
+                                            <p><strong>Conclusion:</strong> {manglikData.conclusion.report}</p>
+                                        </div>
+                                    </>
+                                ) : (
+                                    <p className="text-gray-500">Manglik data not available.</p>
+                                )}
+                            </div>
+                        </div>
+
+                        {isLoading && <p className="py-4 text-center text-purple-600 animate-pulse">Loading match details...</p>}
+                        {isError && <p className="py-4 text-center text-red-600">Error: {error?.data || error.error}</p>}
+
+                        {localMatchData && (
+                            <div className="mt-6 askdoot">
+                                <h3 className="text-xl font-semibold text-center text-purple-700 mb-4">Ashtakoot Match Summary</h3>
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                    {Object.entries(localMatchData).map(([key, val]) => {
+                                        if (key === 'total' || key === 'conclusion') return null;
+                                        return (
+                                            <div key={key} className="border-b bg-purple-100 border-purple-200 px-3 py-4 text-xs rounded-lg shadow-lg text-black flex flex-col gap-1.5">
+                                                <span className="font-semibold">{key.toUpperCase()}</span>
+                                                <div className="grid grid-cols-2 justify-between">
+                                                    <div className="flex gap-1"><span className="font-semibold text-purple-400">Male:</span><span>{val.male_koot_attribute}</span></div>
+                                                    <div className="flex gap-1"><span className="font-semibold text-pink-400">Female:</span><span>{val.female_koot_attribute}</span></div>
+                                                </div>
+                                                <div className="grid grid-cols-2 justify-between">
+                                                    <div className="flex gap-1"><span className="font-semibold text-purple-400">Received Points:</span><span>{val.received_points}</span></div>
+                                                    <div className="flex gap-1"><span className="font-semibold text-pink-400">Total Points:</span><span>{val.total_points}</span></div>
+                                                </div>
+                                                <p><b className="font-semibold text-purple-400">Description:</b> {val.description}</p>
+                                            </div>
+                                        );
+                                    })}
+                                </div>
+
+                                {localMatchData.total && localMatchData.conclusion && (
+                                    <div className="mt-6 p-4 bg-purple-100 border-purple-200 text-black rounded-lg">
+                                        <h4 className="font-semibold text-base text-center">
+                                            Total Score: {localMatchData.total.received_points} / {localMatchData.total.total_points}
+                                        </h4>
+                                        <p className="mt-1 text-sm">{localMatchData.conclusion.report}</p>
+                                    </div>
+                                )}
+                            </div>
+                        )}
+
+                        <div className="match-obs mt-8 p-4 bg-purple-50 border border-purple-200 rounded-lg text-sm text-black shadow">
+                            <h4 className="text-xl font-semibold mb-2 text-center text-purple-600">Obstructions in Match Making</h4>
+                            {matchObsData ? (
+                                <>
+                                    <p><strong>Is Vedha Present?</strong> {matchObsData.is_present ? 'Yes' : 'No'}</p>
+                                    <p><strong>Vedha Report:</strong> {matchObsData.vedha_report}</p>
+                                    {matchObsData.vedha_name && (
+                                        <p><strong>Vedha Name:</strong> {matchObsData.vedha_name}</p>
+                                    )}
+                                </>
+                            ) : (
+                                <p className="text-gray-500">Vedha data not available.</p>
+                            )}
+                        </div>
+
+                        <div className="match-astro mt-8 p-4 bg-white border border-purple-200 rounded-lg text-sm text-black shadow">
+                            <h4 className="text-xl text-center font-semibold mb-3 text-purple-600">Matching Astrological Birth Details</h4>
+                            {astroData ? (
+                                <div className="grid md:grid-cols-2 gap-6 px-5">
+                                    {renderAstroBlock("Male's Astrological Details", astroData.male_astro_details, 'purple', "text-purple-400")}
+                                    {renderAstroBlock("Female's Astrological Details", astroData.female_astro_details, 'pink', "text-pink-400")}
+                                </div>
+                            ) : (
+                                <p className="text-gray-500">Astro data not available.</p>
+                            )}
+                        </div>
+
+
+
+                    </div>
+
+                    <div className="result-compat border border-gray-400 rounded-lg p-5 text-black flex flex-col gap-5">
+                        <Personal />
+                    </div>
+                </div>
+            )}
+        </div>
+    );
+};
+
+export default KundliMilanPage;
