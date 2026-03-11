@@ -9,7 +9,7 @@ import { setContext } from "@apollo/client/link/context";
    HTTP LINK
 ========================= */
 const httpLink = new HttpLink({
-  uri: "http://localhost:4000/graphql",
+  uri: "https://dhwaniastro.com/userAuth/graphql",
   credentials: "include", 
 });
 
@@ -54,7 +54,7 @@ const errorLink = onError(({ graphQLErrors, operation, forward }) => {
           console.log("GraphQL errors:", graphQLErrors);
 
           return new Promise((resolve, reject) => {
-            fetch("http://localhost:4000/graphql", {
+            fetch("https://dhwaniastro.com/userAuth/graphql", {
               method: "POST",
               credentials: "include",
               headers: { "Content-Type": "application/json" },
