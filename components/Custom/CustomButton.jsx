@@ -4,7 +4,8 @@
 import React, { useState, memo } from "react";
 import { createPortal } from "react-dom";
 import SignInModal from "../Homepagecomp/Signin/Signin";
-import { useAuth } from "@/Hooks/useAuth";
+import { useAuth } from "@/app/context/authContext";
+
 
 
 const variantClasses = {

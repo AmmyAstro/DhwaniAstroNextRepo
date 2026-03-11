@@ -1,11 +1,6 @@
 "use client";
 
-import {
-  ApolloClient,
-  InMemoryCache,
-  HttpLink,
-  from,
-} from "@apollo/client";
+import { ApolloClient, InMemoryCache, HttpLink, from } from "@apollo/client";
 
 import { onError } from "@apollo/client/link/error";
 import { setContext } from "@apollo/client/link/context";
@@ -15,22 +10,16 @@ import { setContext } from "@apollo/client/link/context";
 ========================= */
 const httpLink = new HttpLink({
   uri: "http://localhost:4000/graphql",
-  credentials: "include", // needed for refresh token cookie
+  credentials: "include", 
 });
 
 /* =========================
    AUTH LINK (Attach Token)
 ========================= */
 const authLink = setContext((_, { headers }) => {
-  const token =
-    typeof window !== "undefined"
-      ? localStorage.getItem("accessToken")
-      : null;
-
   return {
     headers: {
       ...headers,
-      authorization: token ? `Bearer ${token}` : "",
     },
   };
 });
@@ -46,21 +35,29 @@ const resolvePendingRequests = () => {
   pendingRequests = [];
 };
 
-const errorLink = onError(
-  ({ graphQLErrors, operation, forward }) => {
-    if (graphQLErrors) {
-      for (let err of graphQLErrors) {
-        if (err.message === "Unauthorized") {
+const errorLink = onError(({ graphQLErrors, operation, forward }) => {
+  if (graphQLErrors) {
+    for (let err of graphQLErrors) {
+      const token =
+        typeof window !== "undefined"
+          ? localStorage.getItem("accessToken")
+          : null;
 
-          if (!isRefreshing) {
-            isRefreshing = true;
+      if (
+        token &&
+        (err.message === "Unauthorized" ||
+          err.extensions?.code === "UNAUTHENTICATED")
+      ) {
+        if (!isRefreshing) {
+          isRefreshing = true;
 
-            return fetch("http://localhost:4000/graphql", {
+          console.log("GraphQL errors:", graphQLErrors);
+
+          return new Promise((resolve, reject) => {
+            fetch("http://localhost:4000/graphql", {
               method: "POST",
               credentials: "include",
-              headers: {
-                "Content-Type": "application/json",
-              },
+              headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
                 query: `
                   mutation {
@@ -73,41 +70,49 @@ const errorLink = onError(
             })
               .then((res) => res.json())
               .then((result) => {
-                const newToken =
-                  result?.data?.refreshToken?.accessToken;
+                const newToken = result?.data?.refreshToken?.accessToken;
 
-                if (!newToken) {
-                  throw new Error("Refresh failed");
-                }
+                if (!newToken) throw new Error("Refresh failed");
 
                 localStorage.setItem("accessToken", newToken);
+
+                // attach new token to current operation
+                operation.setContext(({ headers = {} }) => ({
+                  headers: {
+                    ...headers,
+                  },
+                }));
 
                 isRefreshing = false;
                 resolvePendingRequests();
 
-                return forward(operation);
+                resolve(forward(operation));
               })
-              .catch(() => {
+              .catch((err) => {
                 isRefreshing = false;
-                localStorage.removeItem("accessToken");
-                window.location.href = "/";
+                reject(err);
               });
-          }
-
-          return new Promise((resolve) => {
-            pendingRequests.push(() => {
-              resolve(forward(operation));
-            });
           });
         }
+
+        return new Promise((resolve) => {
+          pendingRequests.push(() => {
+            operation.setContext(({ headers = {} }) => ({
+              headers: {
+                ...headers,
+                authorization: `Bearer ${localStorage.getItem("accessToken")}`,
+              },
+            }));
+
+            resolve(forward(operation));
+          });
+        });
       }
     }
   }
-);
+});
 
-/* =========================
-   APOLLO CLIENT
-========================= */
+
 const client = new ApolloClient({
   link: from([errorLink, authLink, httpLink]),
   cache: new InMemoryCache(),

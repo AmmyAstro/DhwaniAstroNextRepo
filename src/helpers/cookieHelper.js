@@ -1,18 +1,15 @@
+import Cookies from "js-cookie";
 
-import Cookies from 'js-cookie';
-
- export const cookieHelper= {
-
-set: (key, value, expiresDays = 30) => { 
-  const safeValue = typeof value === 'object' ? JSON.stringify(value) : value;
-  Cookies.set(key, safeValue, {
-    expires: expiresDays, 
-    path: '/',
-    secure: true,
-    sameSite: 'Strict',
-  });
-},
-
+export const cookieHelper = {
+  set: (key, value, expiresDays = 30) => {
+    const safeValue = typeof value === "object" ? JSON.stringify(value) : value;
+    Cookies.set(key, safeValue, {
+      expires: expiresDays,
+      path: "/",
+      secure: true,
+      sameSite: "None",
+    });
+  },
 
   get: (key) => {
     const value = Cookies.get(key);
@@ -24,8 +21,6 @@ set: (key, value, expiresDays = 30) => {
   },
 
   remove: (key) => {
-    Cookies.remove(key, { path: '/' });
+    Cookies.remove(key, { path: "/" });
   },
 };
-
-

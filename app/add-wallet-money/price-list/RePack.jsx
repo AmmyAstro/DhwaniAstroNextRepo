@@ -14,9 +14,9 @@ const GET_RECHARGE_PACKS = gql`
         name
         description
         price
-        coins
+      
         talktime
-        validityDays
+        
       }
       totalCount
     }
@@ -27,7 +27,9 @@ const RePack = () => {
   const { messages: t } = useLanguage();
   const router = useRouter();
 
-  const { data, loading, error } = useQuery(GET_RECHARGE_PACKS);
+  const { data, loading, error } = useQuery(GET_RECHARGE_PACKS, {
+  fetchPolicy: "network-only",
+});
 
   const packData = data?.getRechargePacks?.data || [];
 
@@ -82,8 +84,8 @@ const RePack = () => {
                 </p>
 
                 <p className="mt-2 text-sm text-gray-500">
-                  {pack.coins} Coins • {pack.talktime} mins •{" "}
-                  {pack.validityDays} days
+            Talktime :  {pack.talktime} 
+               
                 </p>
               </div>
 

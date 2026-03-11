@@ -94,8 +94,7 @@ const SignInModal = ({ onClose }) => {
     try {
       const result = await confirmOtp(phoneData.e164);
 
-      cookieHelper.set("accessToken", result.accessToken);
-      cookieHelper.set("refreshToken", result.refreshToken);
+
 
       client.writeQuery({
         query: gql`
@@ -114,7 +113,7 @@ const SignInModal = ({ onClose }) => {
       if (result.hasName) {
         setExistingUserName(result.user.name);
 
-        // 🔥 ADD THIS BLOCK
+        
         if (pendingRoute) {
           onClose();
           router.push(pendingRoute);
@@ -162,7 +161,7 @@ const SignInModal = ({ onClose }) => {
     }
   };
 
-  // Auto close welcome popup
+
   useEffect(() => {
     if (step === "WELCOME") {
       const t = setTimeout(() => {

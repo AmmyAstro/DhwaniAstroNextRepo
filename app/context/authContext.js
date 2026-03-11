@@ -4,7 +4,7 @@ import { gql } from "@apollo/client";
 import { useQuery } from "@apollo/client/react";
 import { createContext, useContext, useState } from "react";
 
-const AuthContext = createContext();
+export const AuthContext = createContext();
 
 const ME_QUERY = gql`
   query Me {
@@ -16,7 +16,11 @@ const ME_QUERY = gql`
 `;
 
 export function AuthProvider({ children }) {
-  const { data, loading, refetch } = useQuery(ME_QUERY);
+
+  const { data, loading, refetch } = useQuery(ME_QUERY, {
+    fetchPolicy: "network-only",
+    errorPolicy: "ignore",
+  });
 
   const [showLogin, setShowLogin] = useState(false);
   const [pendingRoute, setPendingRoute] = useState(null);
@@ -39,4 +43,6 @@ export function AuthProvider({ children }) {
   );
 }
 
-export const useAuth = () => useContext(AuthContext);
+export function useAuth() {
+  return useContext(AuthContext);
+}
